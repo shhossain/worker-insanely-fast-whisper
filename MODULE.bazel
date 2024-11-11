@@ -1,0 +1,1 @@
+bazel_dep(name = "io_bazel_rules_docker", version = "0.30.0")

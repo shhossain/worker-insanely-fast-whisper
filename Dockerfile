@@ -21,10 +21,15 @@ WORKDIR /workspace
 RUN apt-get update && apt-get install -y ffmpeg
 
 # Install Python Dependencies
+# python -m pip install --upgrade pip wheel setuptools
+
 COPY builder/requirements.txt /requirements.txt
-RUN pip install --upgrade pip && \
-    pip install -r /requirements.txt && \
-    rm /requirements.txt
+RUN pip install --upgrade pip wheel setuptools && \
+    pip install -r /requirements.txt
+
+# install flash-attn separately
+# MAX_JOBS=64 python -m pip -v install flash-attn --no-build-isolation
+RUN MAX_JOBS=2 python -m pip -v install flash-attn --no-build-isolation
 
 # Cache Models
 COPY builder/cache_model.py /cache_model.py

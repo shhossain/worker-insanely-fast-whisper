@@ -110,17 +110,17 @@ def handler(job):
     print(f"Received job: {job_input}")
 
     # Validate input
-    with rp_debugger.LineTimer("validation_step"):
-        input_validation = validate(job_input, INPUT_VALIDATIONS)
-        if "errors" in input_validation:
-            return {"error": input_validation["errors"]}
-        job_input = input_validation["validated_input"]
+    # with rp_debugger.LineTimer("validation_step"):
+    #     input_validation = validate(job_input, INPUT_VALIDATIONS)
+    #     if "errors" in input_validation:
+    #         return {"error": input_validation["errors"]}
+    #     job_input = input_validation["validated_input"]
 
-    if not job_input.get("audio") and not job_input.get("audio_base64"):
-        return {"error": "Must provide either audio or audio_base64"}
+    # if not job_input.get("audio") and not job_input.get("audio_base64"):
+    #     return {"error": "Must provide either audio or audio_base64"}
 
-    if job_input.get("audio") and job_input.get("audio_base64"):
-        return {"error": "Must provide either audio or audio_base64, not both"}
+    # if job_input.get("audio") and job_input.get("audio_base64"):
+    #     return {"error": "Must provide either audio or audio_base64, not both"}
 
     print(f"Running job")
 

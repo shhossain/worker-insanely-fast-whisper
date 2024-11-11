@@ -45,7 +45,13 @@ def download_file(url, local_filename):
 
 
 def run_whisper_inference(
-    model_id, audio_path, chunk_length, batch_size, language, task
+    model_id,
+    audio_path,
+    chunk_length,
+    batch_size,
+    language,
+    task,
+    return_timestamps,
 ):
     """Run Whisper model inference on the given audio file."""
     # model_id = "openai/whisper-large-v3"
@@ -84,7 +90,7 @@ def run_whisper_inference(
         chunk_length_s=chunk_length,
         batch_size=batch_size,
         generate_kwargs={"task": task, "language": language},
-        return_timestamps=True,
+        return_timestamps=return_timestamps,
     )
 
     return outputs
@@ -131,6 +137,7 @@ def handler(job):
                 job_input.get("batch_size", 16),
                 job_input.get("language"),
                 job_input.get("task", "transcribe"),
+                job_input.get("return_timestamps", True),
             )
 
         print(f"Got whisper results: {result}")

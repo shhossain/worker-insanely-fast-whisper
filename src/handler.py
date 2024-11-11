@@ -106,7 +106,7 @@ def run_whisper_inference(
         return_timestamps=return_timestamps,
     )
 
-    return outputs["text"]
+    return outputs
 
 
 @rp_debugger.FunctionTimer

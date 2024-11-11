@@ -7,6 +7,7 @@ import torch
 import base64
 import tempfile
 import traceback
+import json
 from transformers import (
     WhisperFeatureExtractor,
     WhisperTokenizerFast,
@@ -103,69 +104,72 @@ def run_whisper_inference(
         chunk_length_s=chunk_length,
         batch_size=batch_size,
         generate_kwargs={"task": task, "language": language},
-        return_timestamps=True,
+        return_timestamps=return_timestamps,
     )
+    
+    # Convert outputs to serializable format
+    outputs = json.loads(json.dumps(outputs))
 
     return outputs
 
 
 @rp_debugger.FunctionTimer
 def handler(job):
-    job_input = job["input"]
-    print(f"Received job: {job_input}")
-
-    # Validate input
-    with rp_debugger.LineTimer("validation_step"):
-        input_validation = validate(job_input, INPUT_VALIDATIONS)
-        if "errors" in input_validation:
-            return {"error": input_validation["errors"]}
-        job_input = input_validation["validated_input"]
-
-    if not job_input.get("audio") and not job_input.get("audio_base64"):
-        return {"error": "Must provide either audio or audio_base64"}
-
-    if job_input.get("audio") and job_input.get("audio_base64"):
-        return {"error": "Must provide either audio or audio_base64, not both"}
-
-    print(f"Running job")
-
     try:
+        job_input = job["input"]
+        print(f"Received job: {job_input}")
+
+        # Validate input
+        with rp_debugger.LineTimer("validation_step"):
+            input_validation = validate(job_input, INPUT_VALIDATIONS)
+            if "errors" in input_validation:
+                return {"error": input_validation["errors"]}
+            job_input = input_validation["validated_input"]
+
+        if not job_input.get("audio") and not job_input.get("audio_base64"):
+            return {"error": "Must provide either audio or audio_base64"}
+
+        if job_input.get("audio") and job_input.get("audio_base64"):
+            return {"error": "Must provide either audio or audio_base64, not both"}
+
+        print(f"Running job")
+
         # Handle audio input
-        if job_input.get("audio", None):
-            with rp_debugger.LineTimer("download_step"):
-                audio_file_path = download_file(job_input["audio"])
-        elif job_input.get("audio_base64", None):
-            audio_file_path = base64_to_tempfile(job_input["audio_base64"])
+        audio_file_path = None
+        try:
+            if job_input.get("audio", None):
+                with rp_debugger.LineTimer("download_step"):
+                    audio_file_path = download_file(job_input["audio"])
+            elif job_input.get("audio_base64", None):
+                audio_file_path = base64_to_tempfile(job_input["audio_base64"])
 
-        print("Got audio input")
+            print("Got audio input")
 
-        # Run prediction
-        with rp_debugger.LineTimer("prediction_step"):
-            result = run_whisper_inference(
-                job_input.get("model", "openai/whisper-large-v3-turbo"),
-                audio_file_path,
-                job_input.get("chunk_length", 30),
-                job_input.get("batch_size", 16),
-                job_input.get("language"),
-                job_input.get("task", "transcribe"),
-                job_input.get("return_timestamps", True),
-            )
+            # Run prediction
+            with rp_debugger.LineTimer("prediction_step"):
+                result = run_whisper_inference(
+                    job_input.get("model", "openai/whisper-large-v3-turbo"),
+                    audio_file_path,
+                    job_input.get("chunk_length", 30),
+                    job_input.get("batch_size", 16),
+                    job_input.get("language"),
+                    job_input.get("task", "transcribe"),
+                    job_input.get("return_timestamps", True),
+                )
 
-        print(f"Got whisper results: {len(result)}")
+            print(f"Got whisper results: {result}")
+            return {"output": result}
+
+        finally:
+            with rp_debugger.LineTimer("cleanup_step"):
+                rp_cleanup.clean(["input_objects"])
+                if audio_file_path and os.path.exists(audio_file_path):
+                    os.remove(audio_file_path)
 
     except Exception as e:
-        print(
-            f"Prediction failed: {str(e)}\nTraceback:\n{''.join(traceback.format_tb(e.__traceback__))}"
-        )
-        return {"error": f"Prediction failed: {str(e)}"}
-
-    finally:
-        with rp_debugger.LineTimer("cleanup_step"):
-            rp_cleanup.clean(["input_objects"])
-            if "audio_file_path" in locals():
-                os.remove(audio_file_path)
-
-    return result
+        error_msg = f"Prediction failed: {str(e)}\nTraceback:\n{''.join(traceback.format_tb(e.__traceback__))}"
+        print(error_msg)
+        return {"error": error_msg}
 
 
 runpod.serverless.start({"handler": handler})

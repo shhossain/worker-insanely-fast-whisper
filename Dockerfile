@@ -29,7 +29,7 @@ RUN pip install --upgrade pip wheel setuptools && \
 
 # install flash-attn separately
 # MAX_JOBS=64 python -m pip -v install flash-attn --no-build-isolation
-RUN MAX_JOBS=32 python -m pip -v install flash-attn --no-build-isolation
+# RUN MAX_JOBS=32 python -m pip -v install flash-attn --no-build-isolation
 
 # Cache Models
 COPY builder/cache_model.py /cache_model.py

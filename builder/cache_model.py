@@ -33,7 +33,7 @@ def get_pipeline(model, tokenizer, feature_extractor, torch_dtype, device):
         model=model,
         tokenizer=tokenizer,
         feature_extractor=feature_extractor,
-        model_kwargs={"use_flash_attention_2": True},
+        # model_kwargs={"use_flash_attention_2": True},
         torch_dtype=torch_dtype,
         device=device,
     )

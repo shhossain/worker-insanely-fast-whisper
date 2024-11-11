@@ -10,12 +10,11 @@ http_archive(
     urls = ["https://github.com/bazelbuild/bazel-skylib/releases/download/1.4.2/bazel-skylib-1.4.2.tar.gz"],
 )
 
-# Update rules_docker to newer version
+# Update rules_docker with correct version and checksum
 http_archive(
     name = "io_bazel_rules_docker",
-    sha256 = "59d5b42ac315e7b6cf8cfa242950aa3179f5a20288f7fb500f1f05d70751c428",
-    strip_prefix = "rules_docker-0.17.0",
-    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.17.0/rules_docker-v0.17.0.tar.gz"],
+    sha256 = "b1e80761a8a8243d03ebca8845e9cc1ba6c82ce7c5179ce2b295cd36f7e394bf",
+    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.25.0/rules_docker-v0.25.0.tar.gz"],
 )
 
 # Load Docker rules

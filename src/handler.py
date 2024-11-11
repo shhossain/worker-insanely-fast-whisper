@@ -73,7 +73,7 @@ def run_whisper_inference(
         model=model,
         tokenizer=tokenizer,
         feature_extractor=feature_extractor,
-        model_kwargs={"use_flash_attention_2": True},
+        # model_kwargs={"use_flash_attention_2": True},
         torch_dtype=torch_dtype,
         device=device,
     )

@@ -16,6 +16,8 @@ from transformers import (
 from runpod.serverless.utils import rp_cleanup, rp_debugger
 from runpod.serverless.utils.rp_validator import validate
 from rp_schema import INPUT_VALIDATIONS
+from urllib.parse import urlparse
+import hashlib
 
 
 def base64_to_tempfile(base64_file: str) -> str:
@@ -34,22 +36,25 @@ def base64_to_tempfile(base64_file: str) -> str:
     return temp_file.name
 
 
-def download_file(url, local_filename):
-    """Helper function to download a file from a URL."""
-    print(f"Downloading file from {url} to {local_filename}")
-    for _ in range(3):
+def download_file(url):
+    """
+    Download file from URL.
+    """
+    # Parse URL
+    parsed_url = urlparse(url)
+    file_name = os.path.basename(parsed_url.path)
+
+    # Create a temporary file
+    with tempfile.NamedTemporaryFile(suffix=file_name, delete=False) as temp_file:
         try:
-            with requests.get(url, stream=True) as r:
-                r.raise_for_status()
-                with open(local_filename, "wb") as f:
-                    for chunk in r.iter_content(chunk_size=8192):
-                        f.write(chunk)
-            break
-        except requests.RequestException as e:
-            print(f"Error downloading file: {e}")
-            os.remove(local_filename)
-        
-    return local_filename
+            response = requests.get(url)
+            response.raise_for_status()
+            temp_file.write(response.content)
+        except requests.exceptions.RequestException as e:
+            os.remove(temp_file.name)
+            raise e
+
+    return temp_file.name
 
 
 def run_whisper_inference(
@@ -98,10 +103,10 @@ def run_whisper_inference(
         chunk_length_s=chunk_length,
         batch_size=batch_size,
         generate_kwargs={"task": task, "language": language},
-        return_timestamps=True,
+        return_timestamps=return_timestamps,
     )
 
-    return outputs['text']
+    return outputs["text"]
 
 
 @rp_debugger.FunctionTimer
@@ -110,28 +115,26 @@ def handler(job):
     print(f"Received job: {job_input}")
 
     # Validate input
-    # with rp_debugger.LineTimer("validation_step"):
-    #     input_validation = validate(job_input, INPUT_VALIDATIONS)
-    #     if "errors" in input_validation:
-    #         return {"error": input_validation["errors"]}
-    #     job_input = input_validation["validated_input"]
+    with rp_debugger.LineTimer("validation_step"):
+        input_validation = validate(job_input, INPUT_VALIDATIONS)
+        if "errors" in input_validation:
+            return {"error": input_validation["errors"]}
+        job_input = input_validation["validated_input"]
 
-    # if not job_input.get("audio") and not job_input.get("audio_base64"):
-    #     return {"error": "Must provide either audio or audio_base64"}
+    if not job_input.get("audio") and not job_input.get("audio_base64"):
+        return {"error": "Must provide either audio or audio_base64"}
 
-    # if job_input.get("audio") and job_input.get("audio_base64"):
-    #     return {"error": "Must provide either audio or audio_base64, not both"}
+    if job_input.get("audio") and job_input.get("audio_base64"):
+        return {"error": "Must provide either audio or audio_base64, not both"}
 
     print(f"Running job")
 
     try:
         # Handle audio input
-        if job_input.get("audio"):
+        if job_input.get("audio", None):
             with rp_debugger.LineTimer("download_step"):
-                audio_file_path = download_file(
-                    job_input["audio"], "downloaded_audio.wav"
-                )
-        elif job_input.get("audio_base64"):
+                audio_file_path = download_file(job_input["audio"])
+        elif job_input.get("audio_base64", None):
             audio_file_path = base64_to_tempfile(job_input["audio_base64"])
 
         print("Got audio input")
@@ -149,7 +152,6 @@ def handler(job):
             )
 
         print(f"Got whisper results: {len(result)}")
-        
 
     except Exception as e:
         print(

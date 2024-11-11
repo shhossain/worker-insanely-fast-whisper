@@ -1,0 +1,87 @@
+# BUILD
+
+load("@io_bazel_rules_docker//container:container.bzl", "container_image")
+load("@io_bazel_rules_docker//python:python.bzl", "py_binary")
+
+# Define the Python application binary
+py_binary(
+    name = "handler",
+    srcs = ["src/handler.py"],
+    deps = [],  # Add your Python dependencies here if not using requirements.txt
+)
+
+# Define the Docker image
+container_image(
+    name = "pytorch_image",
+    base = "runpod/pytorch:1.13.0-py3.10-cuda11.7.1-devel",
+    # Environment variables
+    env = {
+        "HF_HOME": "/cache/huggingface",
+        "HF_DATASETS_CACHE": "/cache/huggingface/datasets",
+        "DEFAULT_HF_METRICS_CACHE": "/cache/huggingface/metrics",
+        "DEFAULT_HF_MODULES_CACHE": "/cache/huggingface/modules",
+        "HUGGINFACE_HUB_CACHE": "/cache/huggingface/hub",
+        "HUGGINGFACE_ASSETS_CACHE": "/cache/huggingface/assets",
+    },
+    # Set the working directory
+    workdir = "/workspace",
+    # Specify layers (similar to RUN, COPY, ADD in Dockerfile)
+    layers = [
+        # Install system package ffmpeg
+        container_layer(
+            name = "install_ffmpeg",
+            commands = [
+                "apt-get update && apt-get install -y ffmpeg",
+            ],
+        ),
+        # Upgrade pip and install Python dependencies
+        container_layer(
+            name = "install_python_deps",
+            commands = [
+                "pip install --upgrade pip wheel setuptools",
+                "pip install -r /requirements.txt",
+            ],
+            files = {
+                "/requirements.txt": "builder/requirements.txt",
+            },
+        ),
+        # Install flash-attn separately
+        container_layer(
+            name = "install_flash_attn",
+            commands = [
+                "MAX_JOBS=32 pip install -v flash-attn --no-build-isolation",
+            ],
+        ),
+        # Cache Models
+        container_layer(
+            name = "cache_models",
+            commands = [
+                "python /cache_model.py",
+                "rm /cache_model.py",
+            ],
+            files = {
+                "/cache_model.py": "builder/cache_model.py",
+            },
+        ),
+        # Copy Source Code
+        container_layer(
+            name = "copy_source",
+            commands = [
+                "mkdir -p /workspace",
+                "cp -r src/* /workspace/",
+            ],
+        ),
+        # Basic validation
+        container_layer(
+            name = "validate_cache",
+            commands = [
+                'test -n "$(ls -A /cache/huggingface)"',
+            ],
+        ),
+    ],
+    # Specify entrypoint/command
+    cmd = ["python", "-u", "handler.py"],
+    # Use bash shell with pipefail option
+    shell = ["/bin/bash", "-o", "pipefail", "-c"],
+    # Optional: cache settings or other container configurations
+)

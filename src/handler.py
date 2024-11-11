@@ -36,11 +36,19 @@ def base64_to_tempfile(base64_file: str) -> str:
 
 def download_file(url, local_filename):
     """Helper function to download a file from a URL."""
-    with requests.get(url, stream=True) as r:
-        r.raise_for_status()
-        with open(local_filename, "wb") as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                f.write(chunk)
+    print(f"Downloading file from {url} to {local_filename}")
+    for _ in range(3):
+        try:
+            with requests.get(url, stream=True) as r:
+                r.raise_for_status()
+                with open(local_filename, "wb") as f:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        f.write(chunk)
+            break
+        except requests.RequestException as e:
+            print(f"Error downloading file: {e}")
+            os.remove(local_filename)
+        
     return local_filename
 
 
@@ -141,6 +149,7 @@ def handler(job):
             )
 
         print(f"Got whisper results: {result}")
+        
 
     except Exception as e:
         print(

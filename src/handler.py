@@ -101,7 +101,7 @@ def run_whisper_inference(
         return_timestamps=return_timestamps,
     )
 
-    return outputs
+    return outputs['text']
 
 
 @rp_debugger.FunctionTimer
@@ -122,7 +122,7 @@ def handler(job):
     if job_input.get("audio") and job_input.get("audio_base64"):
         return {"error": "Must provide either audio or audio_base64, not both"}
 
-    print(f"Running job with input: {job_input}")
+    print(f"Running job")
 
     try:
         # Handle audio input
@@ -148,7 +148,7 @@ def handler(job):
                 job_input.get("return_timestamps", True),
             )
 
-        print(f"Got whisper results: {result}")
+        print(f"Got whisper results: {len(result)}")
         
 
     except Exception as e:

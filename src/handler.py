@@ -98,7 +98,7 @@ def run_whisper_inference(
         chunk_length_s=chunk_length,
         batch_size=batch_size,
         generate_kwargs={"task": task, "language": language},
-        return_timestamps=return_timestamps,
+        return_timestamps=True,
     )
 
     return outputs['text']

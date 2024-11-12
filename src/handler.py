@@ -81,7 +81,7 @@ def run_whisper_inference(
             torch_dtype=torch_dtype,
             cache_dir=model_cache,
             local_files_only=local_files_only,
-            device_map="auto",  # Enable model offloading
+            # device=device,
             # use_flash_attention_2=True,  # Enable Flash Attention 2
         )
 
@@ -137,23 +137,23 @@ def handler(job):
 
         # Validate input
         print("Validating input")
-        # with rp_debugger.LineTimer("validation_step"):
-        #     input_validation = validate(job_input, INPUT_VALIDATIONS)
-        #     if "errors" in input_validation:
-        #         return {"error": input_validation["errors"]}
-        #     job_input = input_validation["validated_input"]
+        with rp_debugger.LineTimer("validation_step"):
+            input_validation = validate(job_input, INPUT_VALIDATIONS)
+            if "errors" in input_validation:
+                return {"error": input_validation["errors"]}
+            job_input = input_validation["validated_input"]
 
-        # print("Validated input")
-        # for key, value in job_input.items():
-        #     print(f"{key}: {value}")
+        print("Validated input")
+        for key, value in job_input.items():
+            print(f"{key}: {value}")
 
-        # if not job_input.get("audio", False) and not job_input.get(
-        #     "audio_base64", False
-        # ):
-        #     return {"error": "Must provide either audio or audio_base64"}
+        if not job_input.get("audio", False) and not job_input.get(
+            "audio_base64", False
+        ):
+            return {"error": "Must provide either audio or audio_base64"}
 
-        # if job_input.get("audio", False) and job_input.get("audio_base64", False):
-        #     return {"error": "Must provide either audio or audio_base64, not both"}
+        if job_input.get("audio", False) and job_input.get("audio_base64", False):
+            return {"error": "Must provide either audio or audio_base64, not both"}
 
         print(f"Running job")
 

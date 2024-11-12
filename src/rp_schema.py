@@ -10,5 +10,5 @@ INPUT_VALIDATIONS = {
     "batch_size": {"type": int, "required": False, "default": 16},
     "language": {"type": str, "required": False, "default": None},
     "task": {"type": str, "required": False, "default": "transcribe"},
-    "return_timestamps": {"type": str, "required": False, "default": True},
+    "return_timestamps": {"type": str | bool, "required": False, "default": True},
 }

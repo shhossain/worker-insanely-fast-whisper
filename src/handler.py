@@ -68,49 +68,64 @@ def run_whisper_inference(
     return_timestamps,
 ):
     """Run Whisper model inference on the given audio file."""
-    # model_id = "openai/whisper-large-v3"
-    torch_dtype = torch.float16
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    model_cache = "/cache/huggingface/hub"
-    local_files_only = True
-    # Load the model, tokenizer, and feature extractor
-    model = WhisperForConditionalGeneration.from_pretrained(
-        model_id,
-        torch_dtype=torch_dtype,
-        cache_dir=model_cache,
-        local_files_only=local_files_only,
-    ).to(device)
-    tokenizer = WhisperTokenizerFast.from_pretrained(
-        model_id, cache_dir=model_cache, local_files_only=local_files_only
-    )
-    feature_extractor = WhisperFeatureExtractor.from_pretrained(
-        model_id, cache_dir=model_cache, local_files_only=local_files_only
-    )
+    try:
+        torch_dtype = torch.float16
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        model_cache = "/cache/huggingface/hub"
+        local_files_only = True
 
-    # Initialize the pipeline
-    pipe = pipeline(
-        "automatic-speech-recognition",
-        model=model,
-        tokenizer=tokenizer,
-        feature_extractor=feature_extractor,
-        # model_kwargs={"use_flash_attention_2": True},
-        torch_dtype=torch_dtype,
-        device=device,
-    )
+        # Load the model with Flash Attention 2
+        model = WhisperForConditionalGeneration.from_pretrained(
+            model_id,
+            torch_dtype=torch_dtype,
+            cache_dir=model_cache,
+            local_files_only=local_files_only,
+            device_map="auto",  # Enable model offloading
+            # use_flash_attention_2=True,  # Enable Flash Attention 2
+        )
 
-    # Run the transcription
-    outputs = pipe(
-        audio_path,
-        chunk_length_s=chunk_length,
-        batch_size=batch_size,
-        generate_kwargs={"task": task, "language": language},
-        return_timestamps=return_timestamps,
-    )
+        tokenizer = WhisperTokenizerFast.from_pretrained(
+            model_id, cache_dir=model_cache, local_files_only=local_files_only
+        )
+        feature_extractor = WhisperFeatureExtractor.from_pretrained(
+            model_id, cache_dir=model_cache, local_files_only=local_files_only
+        )
 
-    # Convert outputs to serializable format
-    outputs = json.loads(json.dumps(outputs))
+        # Initialize pipeline with better memory management
+        pipe = pipeline(
+            "automatic-speech-recognition",
+            model=model,
+            tokenizer=tokenizer,
+            feature_extractor=feature_extractor,
+            # model_kwargs={"use_flash_attention_2": True},
+            torch_dtype=torch_dtype,
+            device=device,
+        )
 
-    return outputs
+        # Clear CUDA cache before inference
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+        outputs = pipe(
+            audio_path,
+            chunk_length_s=chunk_length,
+            batch_size=batch_size,
+            generate_kwargs={"task": task, "language": language},
+            return_timestamps=return_timestamps,
+        )
+
+        outputs = json.loads(json.dumps(outputs))
+        return outputs
+
+    except torch.cuda.OutOfMemoryError:
+        # Handle CUDA OOM specifically
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        raise RuntimeError(
+            "CUDA out of memory. Try reducing batch_size or chunk_length."
+        )
+    except Exception as e:
+        raise RuntimeError(f"Whisper inference failed: {str(e)}")
 
 
 @rp_debugger.FunctionTimer

@@ -106,7 +106,7 @@ def run_whisper_inference(
         generate_kwargs={"task": task, "language": language},
         return_timestamps=return_timestamps,
     )
-    
+
     # Convert outputs to serializable format
     outputs = json.loads(json.dumps(outputs))
 
@@ -126,10 +126,16 @@ def handler(job):
                 return {"error": input_validation["errors"]}
             job_input = input_validation["validated_input"]
 
-        if not job_input.get("audio") and not job_input.get("audio_base64"):
+        print("Validated input")
+        for key, value in job_input.items():
+            print(f"{key}: {value}")
+
+        if not job_input.get("audio", False) and not job_input.get(
+            "audio_base64", False
+        ):
             return {"error": "Must provide either audio or audio_base64"}
 
-        if job_input.get("audio") and job_input.get("audio_base64"):
+        if job_input.get("audio", False) and job_input.get("audio_base64", False):
             return {"error": "Must provide either audio or audio_base64, not both"}
 
         print(f"Running job")

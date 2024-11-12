@@ -120,6 +120,7 @@ def handler(job):
         print(f"Received job: {job_input}")
 
         # Validate input
+        print("Validating input")
         with rp_debugger.LineTimer("validation_step"):
             input_validation = validate(job_input, INPUT_VALIDATIONS)
             if "errors" in input_validation:
